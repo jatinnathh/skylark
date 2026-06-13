@@ -2,6 +2,9 @@ import os
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import httpx
+from dotenv import load_dotenv
+
+load_dotenv()
 
 app = FastAPI()
 
@@ -15,9 +18,7 @@ app.add_middleware(
 )
 
 # Hugging Face Space backend URL
-HF_SPACE_URL = os.environ.get(
-    "HF_SPACE_URL", "https://jatinnath-skylark-gcp.hf.space"
-)
+HF_SPACE_URL = os.environ.get("HF_SPACE_URL")
 
 
 @app.get("/api/health")

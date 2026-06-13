@@ -49,7 +49,7 @@ export default function Dashboard() {
     try {
       // Directly call the Hugging Face Space to avoid Vercel's 10s Serverless timeout
       // especially when the HF Space is cold-starting (takes 2-3 minutes).
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://jatinnath-skylark-gcp.hf.space/predict";
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL as string;
       const res = await fetch(apiUrl, {
         method: "POST",
         body: formData,

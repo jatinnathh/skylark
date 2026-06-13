@@ -1,6 +1,10 @@
+import os
 import requests
+from dotenv import load_dotenv
 
-url = "https://jatinnath-skylark-gcp.hf.space/predict"
+load_dotenv()
+
+url = os.environ.get("NEXT_PUBLIC_API_URL")
 img_path = r"c:\Users\Jatin\Desktop\skylark\public\sampleimages\DJI_0109.JPG"
 
 print(f"Sending test image to {url}...")

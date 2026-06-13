@@ -27,7 +27,7 @@ predictions.json
 backend/yolo_dataset/
 backend/yolo_dataset_crop/
 backend/yolo_dataset_full/
-
+MODAL_URL.txt
 # Images used for testing/validation
 backend/testimage/
 backend/valimage/
