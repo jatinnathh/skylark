@@ -47,7 +47,9 @@ export default function Dashboard() {
     formData.append("file", file);
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "/api/predict";
+      // Directly call the Hugging Face Space to avoid Vercel's 10s Serverless timeout
+      // especially when the HF Space is cold-starting (takes 2-3 minutes).
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://jatinnath-skylark-gcp.hf.space/predict";
       const res = await fetch(apiUrl, {
         method: "POST",
         body: formData,
@@ -57,7 +59,7 @@ export default function Dashboard() {
       setResult(data);
     } catch (err) {
       console.error(err);
-      alert("Error running prediction. Ensure the FastAPI backend is running on port 8000.");
+      alert("Error running prediction. Ensure the Hugging Face Space is active.");
     } finally {
       setIsUploading(false);
     }

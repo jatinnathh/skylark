@@ -1,32 +1,41 @@
+"""
+Clean Modal deployment - bakes model directly into the container image
+"""
 import io
 import base64
-import os
 from pathlib import Path
 import modal
-from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 
-# Define the Modal App
 app = modal.App("skylark-pose-engine")
 
-# Get the local model path
-local_model_path = Path(__file__).parent / "runs" / "gcp_pose" / "weights" / "best.pt"
+# Get absolute path to model on local machine
+LOCAL_MODEL_PATH = Path(__file__).parent / "runs" / "gcp_pose" / "weights" / "best.pt"
 
-# Define the Modal Image with ML dependencies
-image = modal.Image.debian_slim().pip_install(
-    "ultralytics",
-    "opencv-python-headless",
-    "torch",
-    "torchvision",
-    "Pillow",
-    "fastapi",
-    "python-multipart",
-    "uvicorn"
+# Verify model exists locally before deploying
+if not LOCAL_MODEL_PATH.exists():
+    raise FileNotFoundError(f"Model not found at {LOCAL_MODEL_PATH}")
+
+# Build image with dependencies and bake the model file into the image
+image = (
+    modal.Image.debian_slim()
+    .pip_install(
+        "ultralytics",
+        "opencv-python-headless",
+        "torch",
+        "torchvision",
+        "Pillow",
+        "fastapi",
+        "python-multipart"
+    )
+    .copy_local_file(
+        str(LOCAL_MODEL_PATH),
+        "/root/best.pt"
+    )
 )
 
-# Create FastAPI app
 web_app = FastAPI()
-
 web_app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -39,40 +48,36 @@ CLASS_NAMES = ['Cross', 'Square', 'L-Shape']
 
 @app.function(image=image)
 @modal.asgi_app()
-def fastapi_app():
+def serve():
+    """Serve the FastAPI app with YOLO model"""
     from ultralytics import YOLO
     from PIL import Image, ImageDraw
     
-    # Load model inside the function - Modal will handle the file transfer
-    model_bytes = open(local_model_path, 'rb').read()
-    temp_model_path = "/tmp/best.pt"
-    with open(temp_model_path, 'wb') as f:
-        f.write(model_bytes)
+    # Load model from baked-in path
+    model = YOLO("/root/best.pt")
     
-    model = YOLO(temp_model_path)
-
     @web_app.get("/health")
     async def health():
         return {
             "status": "healthy",
-            "model_loaded": model is not None
+            "model_loaded": True,
+            "model_path": "/root/best.pt"
         }
-
+    
     @web_app.post("/predict")
     async def predict(file: UploadFile = File(...)):
         contents = await file.read()
         img = Image.open(io.BytesIO(contents)).convert('RGB')
         W, H = img.size
         draw = ImageDraw.Draw(img)
-
+        
         window_size = int(max(W, H) * 0.35)
         stride = window_size // 2
-
         best_conf = 0.0
         best_kp = None
         best_box = None
         best_cls = -1
-
+        
         for y0 in range(0, H, stride):
             for x0 in range(0, W, stride):
                 x1 = min(x0 + window_size, W)
@@ -84,7 +89,7 @@ def fastapi_app():
                 if y1 - y0 < window_size:
                     y0 = max(0, H - window_size)
                     y1 = H
-                    
+                
                 crop_img = img.crop((x0, y0, x1, y1))
                 res_crop = model(crop_img, conf=0.005, imgsz=640, verbose=False)[0]
                 
@@ -106,31 +111,31 @@ def fastapi_app():
                     break
             if y1 == H:
                 break
-
+        
         pred_x, pred_y, pred_cls, conf = None, None, -1, 0.0
         status = 'NODET'
         pred_name = 'NOT DETECTED'
-
+        
         if best_conf > 0.0:
             conf = best_conf
             pred_x, pred_y = best_kp
             pred_cls = best_cls
             status = 'DET'
             pred_name = CLASS_NAMES[pred_cls]
-
+            
             bx0, by0, bx1, by1 = [int(v) for v in best_box]
             draw.rectangle([bx0, by0, bx1, by1], outline='red', width=3)
-
+            
             marker_size = max(15, int(min(W, H) * 0.008))
             line_width = max(3, marker_size // 4)
             px, py = int(pred_x), int(pred_y)
             draw.line([(px - marker_size, py - marker_size), (px + marker_size, py + marker_size)], fill='red', width=line_width)
             draw.line([(px - marker_size, py + marker_size), (px + marker_size, py - marker_size)], fill='red', width=line_width)
-
+        
         img_byte_arr = io.BytesIO()
         img.save(img_byte_arr, format='JPEG', quality=85)
         img_b64 = base64.b64encode(img_byte_arr.getvalue()).decode('utf-8')
-
+        
         return {
             "status": status,
             "x": pred_x,
@@ -139,5 +144,5 @@ def fastapi_app():
             "class": pred_name,
             "image_b64": img_b64
         }
-        
+    
     return web_app
