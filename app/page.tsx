@@ -28,7 +28,10 @@ export default function Dashboard() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ event: "Page Visit", details: `A user visited the GCP Analysis Dashboard.\nBrowser/Device info: ${ua}` })
-    }).catch(err => console.error("Notification failed", err));
+    }).then(async res => {
+      console.log("[DEBUG Frontend] Visit notification status:", res.status);
+      console.log("[DEBUG Frontend] Response text:", await res.text());
+    }).catch(err => console.error("[ERROR Frontend] Notification fetch failed:", err));
   }, []);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -60,7 +63,9 @@ export default function Dashboard() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ event: "Prediction Requested", details: `User requested prediction for file: ${file.name}\nBrowser/Device info: ${ua}` })
-    }).catch(err => console.error("Notification failed", err));
+    }).then(async res => {
+      console.log("[DEBUG Frontend] Prediction notification status:", res.status);
+    }).catch(err => console.error("[ERROR Frontend] Notification fetch failed:", err));
 
     const formData = new FormData();
     formData.append("file", file);

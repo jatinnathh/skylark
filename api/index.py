@@ -16,6 +16,7 @@ class NotifyRequest(BaseModel):
     details: str = ""
 
 def send_email_task(subject: str, body: str):
+    print(f"[DEBUG] Starting email task for: {subject}")
     # Using the standard names you provided
     sender_email = os.environ.get("SMTP_USER") or os.environ.get("SMTP_EMAIL")
     sender_password = os.environ.get("SMTP_PASS") or os.environ.get("SMTP_PASSWORD")
@@ -23,7 +24,7 @@ def send_email_task(subject: str, body: str):
     receiver_email = os.environ.get("NOTIFICATION_EMAIL", sender_email)
 
     if not all([sender_email, sender_password, receiver_email]):
-        print("Skipping email notification: SMTP credentials not fully set in .env")
+        print(f"[ERROR] Skipping email notification. Credentials check -> User: {bool(sender_email)}, Pass: {bool(sender_password)}, Recipient: {bool(receiver_email)}")
         return
         
     try:
@@ -33,12 +34,14 @@ def send_email_task(subject: str, body: str):
         msg["From"] = sender_email
         msg["To"] = receiver_email
 
+        print(f"[DEBUG] Connecting to SMTP server to send from {sender_email} to {receiver_email}...")
         server = smtplib.SMTP_SSL("smtp.gmail.com", 465)
         server.login(sender_email, sender_password)
         server.send_message(msg)
         server.quit()
+        print(f"[SUCCESS] Email successfully sent!")
     except Exception as e:
-        print(f"Failed to send email: {e}")
+        print(f"[ERROR] Exception failed to send email: {e}")
 
 # Allow CORS
 app.add_middleware(
@@ -55,10 +58,11 @@ HF_SPACE_URL = os.environ.get("HF_SPACE_URL")
 @app.post("/api/notify")
 async def notify_event(req: NotifyRequest, background_tasks: BackgroundTasks):
     """Trigger an email notification for a specific event."""
+    print(f"[DEBUG] Backend received /api/notify request for event: {req.event}")
     subject = f"Skylark Alert: {req.event}"
     body = f"Event: {req.event}\nDetails: {req.details}"
     background_tasks.add_task(send_email_task, subject, body)
-    return {"status": "notification queued"}
+    return {"status": "notification queued", "event": req.event}
 
 @app.get("/api/health")
 async def health():
