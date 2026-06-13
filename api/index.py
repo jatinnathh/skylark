@@ -2,12 +2,14 @@ import os
 from fastapi import FastAPI, UploadFile, File, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 import httpx
-from dotenv import load_dotenv
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
 import smtplib
 from email.message import EmailMessage
 from pydantic import BaseModel
-
-load_dotenv()
 
 app = FastAPI()
 
