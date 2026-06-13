@@ -379,7 +379,7 @@ export default function Dashboard() {
                     />
                   </div>
                   <p className="text-xs font-semibold tracking-widest uppercase text-zinc-500 font-mono">
-                    Processing CNN tiles…
+                    Processing (May take some time as it is hosted on HUggingface) 
                   </p>
                 </div>
               )}
