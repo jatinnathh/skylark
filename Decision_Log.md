@@ -37,7 +37,7 @@ This sliding window approach ensures that the YOLOv11s Pose model examines every
 
 ### Model Weights
 The best performing model weights are hosted externally.
-* **Download Link:** `[INSERT_YOUR_DRIVE_OR_S3_LINK_HERE]`
+* **Download Link:** "https://drive.google.com/file/d/129KtZ77mEg72mxGaCyx6zkim3kCDS2d0/view?usp=drive_link"
 * **Instructions:** Download the weights file and place it in the appropriate directory before running the inference script.
 
 ### Codebase Structure
