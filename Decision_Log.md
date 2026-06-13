@@ -55,6 +55,5 @@ To reproduce the final `predictions.json` file on the unlabelled test dataset, f
 ```bash
 python backend/save_test_predictions.py
 ```
-*(Please review the script arguments and adjust the command above to reflect your specific execution parameters).*
 
 The script will process the images using the sliding window strategy and output a `predictions.json` file formatted exactly like the training labels.
