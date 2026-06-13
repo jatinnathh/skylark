@@ -27,16 +27,22 @@ out/
 backend/yolo_dataset/
 backend/yolo_dataset_crop/
 backend/yolo_dataset_full/
-backend/runs/
 
 # Images used for testing/validation
 backend/testimage/
 backend/valimage/
 
-# Model weights
+# Model weights - but allow our trained model
 *.pt
 *.pth
 *.onnx
+!backend/runs/gcp_pose/weights/best.pt
+
+# Other runs output (training logs, checkpoints, etc) - but allow the weights folder
+backend/runs/*
+!backend/runs/gcp_pose/
+!backend/runs/gcp_pose/weights/
+!backend/runs/gcp_pose/weights/best.pt
 
 # Jupyter
 .ipynb_checkpoints/

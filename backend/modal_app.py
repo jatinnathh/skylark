@@ -21,10 +21,9 @@ image = modal.Image.debian_slim().pip_install(
 )
 
 # We mount the local weights file into the Modal container
-local_weights_path = r'C:\Users\Jatin\Desktop\skylark\backend\runs\gcp_pose\weights\best.pt'
-# Fallback for paths if run from a different machine/directory
+local_weights_path = os.path.join(os.path.dirname(__file__), "runs/gcp_pose/weights/best.pt")
 if not os.path.exists(local_weights_path):
-    local_weights_path = os.path.join(os.path.dirname(__file__), "runs/gcp_pose/weights/best.pt")
+    raise FileNotFoundError(f"Model file not found at {local_weights_path}")
 
 web_app = FastAPI()
 

@@ -1,11 +1,12 @@
-# /C:\Users\Jatin\Desktop\skylark\api\index.py
 import io
 import base64
 import os
+from pathlib import Path
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-import httpx
-from pathlib import Path
+from ultralytics import YOLO
+from PIL import Image, ImageDraw
+
 app = FastAPI()
 
 # Allow CORS
@@ -17,49 +18,37 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-MODAL_API_URL = os.environ.get("MODAL_API_URL")
+# Use relative path from api directory to backend model
+BASE_DIR = Path(__file__).resolve().parent
+MODEL_PATH = BASE_DIR.parent / "backend" / "runs" / "gcp_pose" / "weights" / "best.pt"
+CLASS_NAMES = ['Cross', 'Square', 'L-Shape']
 
-# Optional local ML loading for local development
+# Load model once at startup
+model = None
 try:
-    from ultralytics import YOLO
-    from PIL import Image, ImageDraw, ImageFont
-    HAS_LOCAL_ML = True
-    BASE_DIR = Path(__file__).resolve().parent
-    MODEL_PATH = (
-    BASE_DIR.parent
-    / "backend"
-    / "runs"
-    / "gcp_pose"
-    / "weights"
-    / "best.pt"
-)
-    CLASS_NAMES = ['Cross', 'Square', 'L-Shape']
     model = YOLO(str(MODEL_PATH))
+    print(f"✅ Model loaded successfully from {MODEL_PATH}")
 except Exception as e:
-    print(f"Local ML libraries not loaded: {e}")
-    HAS_LOCAL_ML = False
-    model = None
+    print(f"❌ Failed to load model: {e}")
+
+@app.get("/api/health")
+async def health():
+    return {
+        "status": "healthy",
+        "model_loaded": model is not None,
+        "model_path": str(MODEL_PATH),
+        "model_exists": MODEL_PATH.exists()
+    }
 
 @app.post("/api/predict")
 async def predict(file: UploadFile = File(...)):
+    if model is None:
+        raise HTTPException(
+            status_code=503,
+            detail=f"Model not loaded. Path checked: {MODEL_PATH}"
+        )
+    
     contents = await file.read()
-
-    # Proxy to Modal if configured
-    if MODAL_API_URL:
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            try:
-                response = await client.post(
-                    MODAL_API_URL,
-                    files={"file": (file.filename, contents, file.content_type)}
-                )
-                response.raise_for_status()
-                return response.json()
-            except Exception as e:
-                raise HTTPException(status_code=500, detail=f"Error communicating with Modal: {str(e)}")
-                
-    if not HAS_LOCAL_ML or not model:
-        raise HTTPException(status_code=500, detail="Local model is not available and MODAL_API_URL is not configured.")
-
     img = Image.open(io.BytesIO(contents)).convert('RGB')
     W, H = img.size
     draw = ImageDraw.Draw(img)
@@ -71,6 +60,7 @@ async def predict(file: UploadFile = File(...)):
     best_box = None
     best_cls = -1
 
+    # Sliding window inference
     for y0 in range(0, H, stride):
         for x0 in range(0, W, stride):
             x1 = min(x0 + window_size, W)
@@ -116,15 +106,18 @@ async def predict(file: UploadFile = File(...)):
         status = 'DET'
         pred_name = CLASS_NAMES[pred_cls]
 
+        # Draw bounding box
         bx0, by0, bx1, by1 = [int(v) for v in best_box]
         draw.rectangle([bx0, by0, bx1, by1], outline='red', width=3)
 
+        # Draw predicted keypoint
         marker_size = max(15, int(min(W, H) * 0.008))
         line_width = max(3, marker_size // 4)
         px, py = int(pred_x), int(pred_y)
         draw.line([(px - marker_size, py - marker_size), (px + marker_size, py + marker_size)], fill='red', width=line_width)
         draw.line([(px - marker_size, py + marker_size), (px + marker_size, py - marker_size)], fill='red', width=line_width)
 
+    # Encode image to base64
     img_byte_arr = io.BytesIO()
     img.save(img_byte_arr, format='JPEG', quality=85)
     img_b64 = base64.b64encode(img_byte_arr.getvalue()).decode('utf-8')
