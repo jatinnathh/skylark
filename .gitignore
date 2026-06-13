@@ -22,7 +22,7 @@ runs
 # Next.js
 .next/
 out/
-
+predictions.json
 # YOLO datasets and outputs
 backend/yolo_dataset/
 backend/yolo_dataset_crop/
