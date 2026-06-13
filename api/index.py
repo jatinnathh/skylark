@@ -1,12 +1,44 @@
 import os
-from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi import FastAPI, UploadFile, File, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 import httpx
 from dotenv import load_dotenv
+import smtplib
+from email.message import EmailMessage
+from pydantic import BaseModel
 
 load_dotenv()
 
 app = FastAPI()
+
+class NotifyRequest(BaseModel):
+    event: str
+    details: str = ""
+
+def send_email_task(subject: str, body: str):
+    # Using the standard names you provided
+    sender_email = os.environ.get("SMTP_USER") or os.environ.get("SMTP_EMAIL")
+    sender_password = os.environ.get("SMTP_PASS") or os.environ.get("SMTP_PASSWORD")
+    # If no separate notification email is set, send it to yourself
+    receiver_email = os.environ.get("NOTIFICATION_EMAIL", sender_email)
+
+    if not all([sender_email, sender_password, receiver_email]):
+        print("Skipping email notification: SMTP credentials not fully set in .env")
+        return
+        
+    try:
+        msg = EmailMessage()
+        msg.set_content(body)
+        msg["Subject"] = subject
+        msg["From"] = sender_email
+        msg["To"] = receiver_email
+
+        server = smtplib.SMTP_SSL("smtp.gmail.com", 465)
+        server.login(sender_email, sender_password)
+        server.send_message(msg)
+        server.quit()
+    except Exception as e:
+        print(f"Failed to send email: {e}")
 
 # Allow CORS
 app.add_middleware(
@@ -20,6 +52,13 @@ app.add_middleware(
 # Hugging Face Space backend URL
 HF_SPACE_URL = os.environ.get("HF_SPACE_URL")
 
+@app.post("/api/notify")
+async def notify_event(req: NotifyRequest, background_tasks: BackgroundTasks):
+    """Trigger an email notification for a specific event."""
+    subject = f"Skylark Alert: {req.event}"
+    body = f"Event: {req.event}\nDetails: {req.details}"
+    background_tasks.add_task(send_email_task, subject, body)
+    return {"status": "notification queued"}
 
 @app.get("/api/health")
 async def health():

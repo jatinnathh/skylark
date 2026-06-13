@@ -1,7 +1,7 @@
 // app\page.tsx
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   UploadCloud,
   Crosshair,
@@ -20,6 +20,16 @@ export default function Dashboard() {
   const [isUploading, setIsUploading] = useState(false);
   const [result, setResult] = useState<any>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    // Notify on page visit
+    const ua = typeof navigator !== 'undefined' ? navigator.userAgent : 'Unknown';
+    fetch("/api/notify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ event: "Page Visit", details: `A user visited the GCP Analysis Dashboard.\nBrowser/Device info: ${ua}` })
+    }).catch(err => console.error("Notification failed", err));
+  }, []);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -43,6 +53,15 @@ export default function Dashboard() {
   const handleRunPrediction = async () => {
     if (!file) return;
     setIsUploading(true);
+
+    // Notify prediction started
+    const ua = typeof navigator !== 'undefined' ? navigator.userAgent : 'Unknown';
+    fetch("/api/notify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ event: "Prediction Requested", details: `User requested prediction for file: ${file.name}\nBrowser/Device info: ${ua}` })
+    }).catch(err => console.error("Notification failed", err));
+
     const formData = new FormData();
     formData.append("file", file);
 
