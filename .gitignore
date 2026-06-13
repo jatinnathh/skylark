@@ -16,7 +16,34 @@
 # next.js
 /.next/
 /out/
+yolo*
+data*
+runs
+# Next.js
+.next/
+out/
 
+# YOLO datasets and outputs
+backend/yolo_dataset/
+backend/yolo_dataset_crop/
+backend/yolo_dataset_full/
+backend/runs/
+
+# Images used for testing/validation
+backend/testimage/
+backend/valimage/
+
+# Model weights
+*.pt
+*.pth
+*.onnx
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Python cache
+__pycache__/
+*.pyc
 # production
 /build
 data
