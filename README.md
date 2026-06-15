@@ -107,3 +107,5 @@ To reproduce the exact `predictions.json` file for the unlabelled test dataset u
 ## Technical Documentation & Decisions
 
 For a deep dive into why YOLOv11s Pose was chosen, how the zoomed-in oversampling mitigates scale variation challenges, and the exact mechanics of the sliding window inference, please refer to the [Decision_Log.md](./Decision_Log.md). This document serves as the formal technical write-up for this project.
+
+![Visitor Count](https://komarev.com/ghpvc/?username=jatinnathh&color=blue)
